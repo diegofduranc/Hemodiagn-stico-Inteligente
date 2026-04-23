@@ -1,0 +1,21 @@
+# Python cache
+__pycache__/
+*.py[cod]
+*.pyo
+
+# Virtual environments
+.venv/
+venv/
+env/
+
+# Notebook and IDE
+.ipynb_checkpoints/
+.vscode/
+
+# Build and runtime artifacts
+outputs/
+hemograma_data.csv
+
+# OS files
+.DS_Store
+Thumbs.db
