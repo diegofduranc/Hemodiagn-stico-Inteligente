@@ -1,72 +1,92 @@
 # Clasificacion Multiclase de Hemograma para ESP32
 
-Proyecto para generar datos sinteticos de hemograma (50,000 registros), entrenar modelos multiclase y evaluar metricas con foco en sensibilidad para condiciones criticas (Leucemia y Trombocitopenia).
+Proyecto para generar datos sinteticos de hemograma (50,000 registros), entrenar clasificadores multiclase y preparar despliegue en ESP32 con foco en sensibilidad para clases criticas.
 
-## Estructura
+## Arquitectura actual
 
-- `generate_hemograma_data.py`: genera `hemograma_data.csv` con 10 clases clinicas.
-- `train_and_evaluate.py`: entrena Random Forest y XGBoost con `RobustScaler`, crea matriz de confusion, classification report, F1 macro y AUC-ROC.
-- `requirements.txt`: dependencias.
+- `hemodiagnostico/`: paquete principal del dominio.
+  - `config.py`: carga y fusion de configuracion del proyecto.
+  - `data_generation.py`: logica medica de simulacion de dataset.
+  - `model_training.py`: tuning, evaluacion, CV y exportacion ESP32.
+  - `cli.py`: CLI unificada (`generate`, `train`, `full`).
+- `configs/project_config.json`: configuracion central editable.
+- `main.py`: entrada unica recomendada.
+- `generate_hemograma_data.py`: wrapper compatible al generador.
+- `train_and_evaluate.py`: wrapper compatible al entrenamiento.
 
-## Clases modeladas
+## Flujo recomendado
 
-1. Sano
-2. Anemia Ferropenica
-3. Anemia Megaloblastica
-4. Infeccion Bacteriana
-5. Infeccion Viral
-6. Trombocitopenia
-7. Policitemia Vera
-8. Leucemia
-9. Alergias
-10. Deshidratacion
-
-## Instalacion
+1. Generar dataset:
 
 ```powershell
-pip install -r requirements.txt
+python main.py generate
 ```
 
-## 1) Generar dataset sintetico
+2. Entrenar y evaluar:
 
 ```powershell
-python generate_hemograma_data.py --output hemograma_data.csv
+python main.py train --tune --cv-folds 5 --output-dir outputs_step5
 ```
 
-Salida esperada:
-- Archivo `hemograma_data.csv` con 50,000 filas.
-- Distribucion de clases impresa en consola.
-
-## 2) Entrenar y evaluar
+3. Flujo completo en un comando:
 
 ```powershell
-python train_and_evaluate.py --data hemograma_data.csv --output-dir outputs
+python main.py full
 ```
 
-## Resultados generados
+## Validacion rapida antes de cambios
 
-En `outputs/`:
+Regresion end-to-end (genera datos, entrena por ambas rutas y valida clases):
+
+```powershell
+powershell -ExecutionPolicy Bypass -File .\regression_check.ps1
+```
+
+Solo validacion de reportes existentes:
+
+```powershell
+powershell -ExecutionPolicy Bypass -File .\regression_check.ps1 -ValidateOnly
+```
+
+Pruebas unitarias/smoke:
+
+```powershell
+python -m pytest -q
+```
+
+## Configuracion central
+
+Ajusta parametros en `configs/project_config.json`:
+
+- `data_generation.output_csv`
+- `data_generation.random_seed`
+- `training.data_path`
+- `training.output_dir`
+- `training.tune`
+- `training.cv_folds`
+- `training.random_seed`
+
+## Artefactos principales
+
+En la carpeta de salida (`training.output_dir`) se generan:
+
 - `metrics_summary.csv`
-- `random_forest/classification_report.txt`
-- `random_forest/confusion_matrix.csv`
-- `random_forest/confusion_matrix.png`
-- `xgboost/classification_report.txt` (si xgboost esta instalado)
-- `xgboost/confusion_matrix.csv` (si xgboost esta instalado)
-- `xgboost/confusion_matrix.png` (si xgboost esta instalado)
-- `esp32_export/rf_pipeline.joblib`
-- `esp32_export/esp32_rf_model.h` (si `micromlgen` esta instalado)
+- `cv_summary.csv` (si `cv_folds >= 2`)
+- `random_forest/` (matriz + reporte)
+- `random_forest_esp32/` (matriz + reporte)
+- `xgboost/` (si disponible)
+- `esp32_export/`
+  - `esp32_rf_model.h`
+  - `esp32_preprocess.h`
+  - `feature_manifest.csv`
+  - `class_labels.csv`
+  - `deployment_summary.json`
+  - `esp32_inference_template.ino`
 
-## Enfoque de seguridad clinica
+## Despliegue en ESP32
 
-- Se usa `RobustScaler` para mitigar outliers, especialmente de la clase Leucemia.
-- Se aplican pesos de clase para aumentar Recall en:
-  - `Trombocitopenia` (id 5)
-  - `Leucemia` (id 7)
-- Se reportan explicitamente:
-  - `Recall` por clase critica
-  - `F1-Score Macro`
-  - `AUC-ROC Macro (OvR)`
+El modelo elegido para firmware es `Random Forest ESP32` (compacto) para balancear memoria y recall clinico alto. Usa siempre:
 
-## Nota para despliegue en ESP32
-
-Para inferencia embebida, el Random Forest exportado con `micromlgen` es mas adecuado que XGBoost por memoria y complejidad. El archivo de cabecera generado incluye el modelo y el orden exacto de features.
+1. Escalado con `esp32_preprocess.h`.
+2. Mismo orden de features definido en `feature_manifest.csv`.
+3. Mapeo de salida con `class_labels.csv`.

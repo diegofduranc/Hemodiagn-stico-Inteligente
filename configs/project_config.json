@@ -1,0 +1,13 @@
+{
+  "data_generation": {
+    "output_csv": "hemograma_data.csv",
+    "random_seed": 42
+  },
+  "training": {
+    "data_path": "hemograma_data.csv",
+    "output_dir": "outputs",
+    "tune": false,
+    "cv_folds": 5,
+    "random_seed": 42
+  }
+}

@@ -14,6 +14,8 @@ env/
 
 # Build and runtime artifacts
 outputs/
+outputs_step*/
+outputs_*/
 hemograma_data.csv
 
 # OS files
